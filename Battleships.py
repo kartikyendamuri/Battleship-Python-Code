@@ -9,7 +9,7 @@ def print_board(board):
     for row in board:
         print((" ").join(row))
 
-print("Let's play Battleship!")
+print("Let's play Battleship with Sujay, because he is awesome!")
 print_board(board)
 
 def random_row(board):
