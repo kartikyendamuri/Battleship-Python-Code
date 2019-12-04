@@ -1,0 +1,401 @@
+# Simple pong game - don't let the ball hit the bottom!
+# KidsCanCode - Intro to Programming
+from tkinter import *
+import random
+from turtle import Turtle, Screen
+import turtle
+from time import sleep
+import sys
+import time
+whichgame = input('TicTacToe, Bouncy, Snake or Drawing? : ')
+# Define ball properties and functions
+if whichgame == 'bouncy':
+    # explain instructions with a print statement with time gaps bouncy
+    class Ball:
+        def __init__(self, canvas, color, size, paddle):
+            self.canvas = canvas
+            self.paddle = paddle
+            self.id = canvas.create_oval(10, 10, size, size, fill=color)
+            self.canvas.move(self.id, 245, 100)
+            self.xspeed = random.randrange(-3, 3)
+            self.yspeed = -1
+            self.hit_bottom = False
+            self.score = 0
+
+        def draw(self):
+            self.canvas.move(self.id, self.xspeed, self.yspeed)
+            pos = self.canvas.coords(self.id)
+            if pos[1] <= 0:
+                self.yspeed = 3
+            if pos[3] >= 400:
+                self.hit_bottom = True
+            if pos[0] <= 0:
+                self.xspeed = 3
+            if pos[2] >= 500:
+                self.xspeed = -3
+            if self.hit_paddle(pos) == True:
+                self.yspeed = -3
+                self.xspeed = random.randrange(-3, 3)
+                self.score += 1
+
+        def hit_paddle(self, pos):
+            paddle_pos = self.canvas.coords(self.paddle.id)
+            if pos[2] >= paddle_pos[0] and pos[0] <= paddle_pos[2]:
+                if pos[3] >= paddle_pos[1] and pos[3] <= paddle_pos[3]:
+                    return True
+            return False
+
+    # Define paddle properties and functions
+    class Paddle:
+        def __init__(self, canvas, color):
+            self.canvas = canvas
+            self.id = canvas.create_rectangle(0, 0, 100, 10, fill=color)
+            self.canvas.move(self.id, 200, 300)
+            self.xspeed = 0
+            self.canvas.bind_all('<KeyPress-Left>', self.move_left)
+            self.canvas.bind_all('<KeyPress-Right>', self.move_right)
+
+        def draw(self):
+            self.canvas.move(self.id, self.xspeed, 0)
+            pos = self.canvas.coords(self.id)
+            if pos[0] <= 0:
+                self.xspeed = 0
+            if pos[2] >= 500:
+                self.xspeed = 0
+
+        def move_left(self, evt):
+            self.xspeed = -2
+
+        def move_right(self, evt):
+            self.xspeed = 2
+
+    # Create window and canvas to draw on
+    tk = Tk()
+    tk.title("Ball Game")
+    canvas = Canvas(tk, width=500, height=400, bd=0, bg='papaya whip')
+    canvas.pack()
+    label = canvas.create_text(5, 5, anchor=NW, text="Score: 0")
+    tk.update()
+    paddle = Paddle(canvas, 'blue')
+    ball = Ball(canvas, 'red', 25, paddle)
+
+    # Animation loop
+    while ball.hit_bottom == False:
+        ball.draw()
+        paddle.draw()
+        canvas.itemconfig(label, text="Score: "+str(ball.score))
+        tk.update_idletasks()
+        tk.update()
+        time.sleep(0.01)
+
+    # Game Over
+    go_label = canvas.create_text(
+        250, 200, text="GAME OVER", font=("Helvetica", 30))
+    tk.update()
+if whichgame == 'tic tac toe':
+
+    board = [i for i in range(0, 9)]
+    player, computer = '', ''
+
+    # Corners, Center and Others, respectively
+    moves = ((1, 7, 3, 9), (5,), (2, 4, 6, 8))
+    # Winner combinations
+    winners = ((0, 1, 2), (3, 4, 5), (6, 7, 8), (0, 3, 6),
+               (1, 4, 7), (2, 5, 8), (0, 4, 8), (2, 4, 6))
+    # Table
+    tab = range(1, 10)
+
+    def print_board():
+        x = 1
+        for i in board:
+            end = ' | '
+            if x % 3 == 0:
+                end = ' \n'
+                if i != 1:
+                    end += '---------\n';
+            char = ' '
+            if i in ('X', 'O'):
+                char = i;
+            x += 1
+            print(char, end=end)
+
+    def select_char():
+        chars = ('X', 'O')
+        if random.randint(0, 1) == 0:
+            return chars[::-1]
+        return chars
+
+    def can_move(brd, player, move):
+        if move in tab and brd[move-1] == move-1:
+            return True
+        return False
+
+    def can_win(brd, player, move):
+        places = []
+        x = 0
+        for i in brd:
+            if i == player:
+                places.append(x);
+            x += 1
+        win = True
+        for tup in winners:
+            win = True
+            for ix in tup:
+                if brd[ix] != player:
+                    win = False
+                    break
+            if win == True:
+                break
+        return win
+
+    def make_move(brd, player, move, undo=False):
+        if can_move(brd, player, move):
+            brd[move-1] = player
+            win = can_win(brd, player, move)
+            if undo:
+                brd[move-1] = move-1
+            return (True, win)
+        return (False, False)
+
+    # AI goes here
+    def computer_move():
+        move = -1
+        # If I can win, others don't matter.
+        for i in range(1, 10):
+            if make_move(board, computer, i, True)[1]:
+                move = i
+                break
+        if move == -1:
+            # If player can win, block him.
+            for i in range(1, 10):
+                if make_move(board, player, i, True)[1]:
+                    move = i
+                    break
+        if move == -1:
+            # Otherwise, try to take one of desired places.
+            for tup in moves:
+                for mv in tup:
+                    if move == -1 and can_move(board, computer, mv):
+                        move = mv
+                        break
+        return make_move(board, computer, move)
+
+    def space_exist():
+        return board.count('X') + board.count('O') != 9
+
+    player, computer = select_char()
+    print('Player is [%s] and computer is [%s]' % (player, computer))
+    result = '%%% Deuce ! %%%'
+    while space_exist():
+        print_board()
+        print('# Make your move ! [1-9] : ', end='')
+        move = int(input())
+        moved, won = make_move(board, player, move)
+        if not moved:
+            print(' >> Invalid number ! Try again !')
+            continue
+        #
+        if won:
+            result = '*** Congratulations ! You won ! ***'
+            break
+        elif computer_move()[1]:
+            result = '=== You lose ! =='
+            break
+
+    print_board()
+    print(result)
+if whichgame == 'drawing':
+    daddy = Turtle()
+    wn = Screen()
+    wn.bgcolor('lightblue')
+
+    spaceship = Turtle()
+    spaceship.color('red')
+    spaceship.penup()
+
+    speed = 2
+
+    def travel():
+        spaceship.forward(speed)
+        wn.ontimer(travel, 2)
+
+    wn.onkey(lambda: spaceship.setheading(90), 'Up')
+    wn.onkey(lambda: spaceship.setheading(180), 'Left')
+    wn.onkey(lambda: spaceship.setheading(0), 'Right')
+    wn.onkey(lambda: spaceship.setheading(270), 'Down')
+
+    sleep(10)
+    spaceship.pendown()
+
+    wn.listen()
+
+    travel()
+
+    wn.mainloop()
+
+if whichgame == 'snake':
+    SIZE = 20
+
+    class Square:
+        def __init__(self, x, y):
+            self.x = x
+            self.y = y
+
+        def drawself(self, turtle):
+            """ draw a black box at its coordinates, leaving a small gap between cubes """
+
+            turtle.goto(self.x - SIZE // 2 - 1, self.y - SIZE // 2 - 1)
+
+            turtle.begin_fill()
+            for _ in range(4):
+                turtle.forward(SIZE - SIZE // 10)
+                turtle.left(90)
+            turtle.end_fill()
+
+    class Food:
+        def __init__(self, x, y):
+            self.x = x
+            self.y = y
+            self.is_blinking = True
+
+        def changelocation(self):
+            # I haven't programmed it to spawn outside the snake's body yet
+            self.x = random.randint(0, SIZE) * SIZE - 200
+            self.y = random.randint(0, SIZE) * SIZE - 200
+
+        def drawself(self, turtle):
+            # similar to the Square drawself, but blinks on and off
+            if self.is_blinking:
+                turtle.goto(self.x - SIZE // 2 - 1, self.y - SIZE // 2 - 1)
+                turtle.begin_fill()
+                for _ in range(4):
+                    turtle.forward(SIZE - SIZE // 10)
+                    turtle.left(90)
+                turtle.end_fill()
+
+        def changestate(self):
+            # controls the blinking
+            self.is_blinking = not self.is_blinking
+
+    class Snake:
+        def __init__(self):
+            # keeps track of where it needs to go next
+            self.headposition = [SIZE, 0]
+            # body is a list of squares
+            self.body = [Square(-SIZE, 0), Square(0, 0), Square(SIZE, 0)]
+            self.nextX = 1  # tells the snake which way it's going next
+            self.nextY = 0
+            self.crashed = False  # I'll use this when I get around to collision detection
+            self.nextposition = [self.headposition[0] + SIZE * \
+                self.nextX, self.headposition[1] + SIZE * self.nextY]
+            # prepares the next location to add to the snake
+
+        def moveOneStep(self):
+            if Square(self.nextposition[0], self.nextposition[1]) not in self.body:
+                # attempt (unsuccessful) at collision detection
+                self.body.append(Square(self.nextposition[0], self.nextposition[1]))
+                # moves the snake head to the next spot, deleting the tail
+                del self.body[0]
+                self.headposition[0], self.headposition[1] = self.body[-1].x, self.body[-1].y
+                # resets the head and nextposition
+                self.nextposition = [self.headposition[0] + SIZE * \
+                    self.nextX, self.headposition[1] + SIZE * self.nextY]
+            else:
+                self.crashed = True  # more unsuccessful collision detection
+
+        def moveup(self):  # pretty obvious what these do
+            self.nextX, self.nextY = 0, 1
+
+        def moveleft(self):
+            self.nextX, self.nextY = -1, 0
+
+        def moveright(self):
+            self.nextX, self.nextY = 1, 0
+
+        def movedown(self):
+            self.nextX, self.nextY = 0, -1
+
+        def eatFood(self):
+            # adds the next spot without deleting the tail, extending the snake by 1
+            self.body.append(
+                Square(self.nextposition[0], self.nextposition[1]))
+            self.headposition[0], self.headposition[1] = self.body[-1].x, self.body[-1].y
+            self.nextposition = [self.headposition[0] + SIZE * \
+                self.nextX, self.headposition[1] + SIZE * self.nextY]
+
+        def drawself(self, turtle):  # draws the whole snake when called
+            for segment in self.body:
+                segment.drawself(turtle)
+
+    class Game:
+        def __init__(self):
+            # game object has a screen, a turtle, a basic snake and a food
+            self.screen = Screen()
+            self.artist = Turtle(visible=False)
+            self.artist.up()
+            self.artist.speed("slowest")
+
+            self.snake = Snake()
+            self.food = Food(100, 0)
+            self.counter = 0  # this will be used later
+            self.commandpending = False  # as will this
+
+            self.screen.tracer(0)  # follow it so far?
+
+            self.screen.listen()
+            self.screen.onkey(self.snakedown, "Down")
+            self.screen.onkey(self.snakeup, "Up")
+            self.screen.onkey(self.snakeleft, "Left")
+            self.screen.onkey(self.snakeright, "Right")
+
+        def nextFrame(self):
+            self.artist.clear()
+
+            if (self.snake.nextposition[0], self.snake.nextposition[1]) == (self.food.x, self.food.y):
+                self.snake.eatFood()
+                self.food.changelocation()
+            else:
+                self.snake.moveOneStep()
+
+            if self.counter == 10:
+                self.food.changestate()  # makes the food flash slowly
+                self.counter = 0
+            else:
+                self.counter += 1
+
+            self.food.drawself(self.artist)  # show the food and snake
+            self.snake.drawself(self.artist)
+            self.screen.update()
+            self.screen.ontimer(lambda: self.nextFrame(), 100)
+
+        def snakeup(self):
+            if not self.commandpending:
+                self.commandpending = True
+                self.snake.moveup()
+                self.commandpending = False
+
+        def snakedown(self):
+            if not self.commandpending:
+                self.commandpending = True
+                self.snake.movedown()
+                self.commandpending = False
+
+        def snakeleft(self):
+            if not self.commandpending:
+                self.commandpending = True
+                self.snake.moveleft()
+                self.commandpending = False
+
+        def snakeright(self):
+            if not self.commandpending:
+                self.commandpending = True
+                self.snake.moveright()
+                self.commandpending = False
+
+    game = Game()
+
+    screen = Screen()
+
+    screen.ontimer(lambda: game.nextFrame(), 100)
+
+    screen.mainloop()
